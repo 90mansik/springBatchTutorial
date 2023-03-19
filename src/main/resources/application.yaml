@@ -1,0 +1,14 @@
+spring:
+  batch:
+    job:
+      names: ${job.name:NOME}
+    jdbc:
+      initialize-schema: ALWAYS
+  datasource:
+    url: jdbc:h2:~/test
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 1111
+  jpa:
+    show-sql: true
+

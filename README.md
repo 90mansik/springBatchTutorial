@@ -16,6 +16,7 @@
     - DI, AOP, 처비스 추상화 등 스프링의 요소들을 모두 사용할 수 있다.
 
 # 스프링 배치의 구조
+![스프링배치](https://github.com/90mansik/springBatchTutorial/blob/master/file/springBatchArchitecture.png)
 - JobRepository
     - 수행되는 Job에 대한 정보를 담고 있는 저장소로 배치작업의 지속성 메커니즘
     - Spring Batch에서 JobExecution와 StepExecution 등과 같은 지속성을 가진 정보의 기본 CRUD작업에 사용
@@ -27,3 +28,81 @@
 - Step
     - 실제 배치 처리를 정의하고 제어하는데 필요한 정보가 있는 객체
     - ItemReader(읽기) ,ItemProcessor(처리) ,ItemWriter(쓰기) 단계로 이루어진다.
+
+------
+# Hello, world 실행시키기
+
+```java
+@EnableBatchProcessing
+@SpringBootApplication
+public class SpringBatchTutorialApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(SpringBatchTutorialApplication.class, args);
+	}
+
+}
+```
+- 배치처리를 위해 @EnableBatchProcessing 어노테이션 추가
+- @EnableBatchProcessing
+  - 스프링 배치가 제공하는 어노테이션으로, 배치 인프라스트럭처를 부트스트랩하는데 사용
+  - 배치 인프라스트럭처를 위한 대부분의 스프링 빈 정의를 제공
+    - JobRepository, JobLauncher ,JobExplorer 등을 제공
+
+
+## HelloWorldJobConfig.java 추가
+
+```java
+@Configuration
+@RequiredArgsConstructor
+public class HelloWorldJobConfig {
+
+    @Autowired
+    private JobBuilderFactory jobBuilderFactory;
+
+    @Autowired
+    private StepBuilderFactory stepBuilderFactory;
+
+
+    @Bean
+    public Job helloWorldJob(){
+        return jobBuilderFactory.get("helloWorldJob")
+                .incrementer(new RunIdIncrementer())
+                .start(helloWorldStep())
+                .build();
+    }
+
+    @JobScope
+    @Bean
+    public Step helloWorldStep() {
+        return stepBuilderFactory.get("helloWorldStep")
+                .tasklet(helloWorldTasklet())
+                .build();
+    }
+
+    @StepScope
+    @Bean
+    public Tasklet helloWorldTasklet() {
+        return new Tasklet() {
+            @Override
+            public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+                System.out.println("Hello World Spring Batch");
+                return RepeatStatus.FINISHED;
+            }
+        };
+    }
+
+}
+```
+- JobBuilderFactory 
+  - JobBuilder를 생성하는 팩토리 클래스로 get 메서드를 제공
+  - JobBuilder가 jobName을 잡의 이름으로 하여 잡을 생성하도록 구성
+    - JobBuilderFactory.get("jobName")
+- Job 
+  - JobScope : 스프링 컨테이너가 Spring 컨테이너를 통해 지정된 Job의 실행시점에 해당 컴포넌트를 Spring Bean으로 생성
+- Step
+  - StepScope : 스프링 컨테이너가 Step의 실행시점에 해당 컴포넌트를 Spring Bean으로 생성
+- TaskLet
+  - 사용자가 작성한 코드를 Tasklet Step 처럼 실행하는 방식
+  - 일반 POJO를 Step으로 활용 가능
+

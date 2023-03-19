@@ -5,7 +5,7 @@ spring:
     jdbc:
       initialize-schema: ALWAYS
   datasource:
-    url: jdbc:h2:~/test
+    url: jdbc:h2:~/spring_batch
     driver-class-name: org.h2.Driver
     username: sa
     password: 1111

@@ -106,3 +106,109 @@ public class HelloWorldJobConfig {
   - 사용자가 작성한 코드를 Tasklet Step 처럼 실행하는 방식
   - 일반 POJO를 Step으로 활용 가능
 
+# Spring Batch Listener
+
+## Listener의 역할
+
+- 배치 Job, Step 실행 전후에 상태확인 및 어떠한 일을 처리할 수 있게하는 Interceptor 개념의 클래스
+
+## Listener의 종류
+
+- Job Listener
+  - JobExecutionListener은 Job의 실행 전후에 일을 처리할때 사용
+  - beforeJob, afterJob 메서드를 갖는다.
+- Step Listener
+  - StepExecutionListener은 Step의 실행 전후에 일을 처리할때 사용
+  - beforeStep, afterStep 메서드를 갖는다.
+  - ChunkListener : 추후 정리
+  - ItemReaderListener : 추후정리
+  - ItemWriterListener : 추후 정리
+  - ItemProcessorListener : 추후 정리
+
+
+# Job 실행전에 Log를 찍어주는 리스너를 추가하기
+
+### JobLoggerListener.java 추가
+
+```java
+@Slf4j
+public class JobLoggerListener implements JobExecutionListener {
+
+    private static String BEFORE_MESSAGE = "{} Job is running";
+
+    private static String AFTER_MESSAGE = "{} Job is Done. (Status: {})";
+
+    @Override
+    public void beforeJob(JobExecution jobExecution) {
+        log.info(BEFORE_MESSAGE, jobExecution.getJobInstance().getJobName());
+    }
+
+    @Override
+    public void afterJob(JobExecution jobExecution) {
+        log.info(AFTER_MESSAGE, jobExecution.getJobInstance().getJobName(), jobExecution.getStatus());
+
+        if (jobExecution.getStatus() == BatchStatus.FAILED) {
+            log.info("Job is Fail");
+        }
+    }
+}
+```
+
+- JobExecutionListener 인터페이스를 상속 받으면 아래 메소드가 오버라이드 된다.
+  - beforeJob
+    - 잡 생명주기에서 가장 먼저 실행
+  - afterJob
+    - 잡 생명주기에서 가장 나중에 실행
+    - 잡의 완료 상태에 관계없이 호출
+    - 잡의 종료 상태에 따라 분기 처리 가능
+- beforeJob에 job이 시작되기 전에 호출 시킬 메시지를 작성
+- afterJob에 job이 종료 될때 호출시킬 메시지를 작성
+- afterJob에 job의 상태에 따라 분기 처리가 가능
+
+### JobLoggerListener.java 추가
+
+```java
+@Configuration
+@RequiredArgsConstructor
+public class JobListenerConfig {
+
+    @Autowired
+    private JobBuilderFactory jobBuilderFactory;
+
+    @Autowired
+    private StepBuilderFactory stepBuilderFactory;
+
+    @Bean
+    public Job jobListenerJob(Step jobListenerStep) {
+        return jobBuilderFactory.get("jobListenerJob")
+                .incrementer(new RunIdIncrementer())
+                .listener(new JobLoggerListener())
+                .start(jobListenerStep)
+                .build();
+    }
+
+    @JobScope
+    @Bean
+    public Step jobListenerStep(Tasklet jobListenerTasklet) {
+        return stepBuilderFactory.get("jobListenerStep")
+                .tasklet(jobListenerTasklet)
+                .build();
+    }
+
+    @StepScope
+    @Bean
+    public Tasklet jobListenerTasklet() {
+        return new Tasklet() {
+            @Override
+            public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) throws Exception {
+                System.out.println("jobListener Spring Batch");
+                return RepeatStatus.FINISHED;
+                //throw new Exception("fail!!!");
+            }
+        };
+    }
+
+}
+```
+
+- JobBuilderFactory의 .listener를 사용해서 위에서 만들어준 JobLoggerListener을 등록 해준다.

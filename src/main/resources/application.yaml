@@ -2,6 +2,7 @@ spring:
   batch:
     job:
       names: ${job.name:NOME}
+      enabled: false
     jdbc:
       initialize-schema: ALWAYS
   datasource:
